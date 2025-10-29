@@ -46,8 +46,6 @@ Produce a **single-source-of-truth** API reference from local inputs:
 - If refs are `$ref: "#/components/schemas/..."`, resolve them locally.
 
 ### Inputs
-```
-
 docs/
 openapi.snapshot.json
 endpoints.csv
