@@ -95,12 +95,12 @@ Only tweak you may need per project: **entry module** in the import list (e.g., 
 ### C) (Optional) `SPECIFY.md` (one-pager for your agent)
 
 ```
-bash
-Copy code
 Use tools/docgen.py to generate API_GUIDE.md and docs/*.
 Preferred source: live OpenAPI at http://localhost:8000/openapi.json.
+
 Fallback: import app.main:app then app.openapi().
 Fallback: static router scan.
+
 Emit curl/HTTPie/Python examples per endpoint and export schemas.
 Validate safe GET endpoints. Do not hit destructive routes.
 ```
@@ -162,8 +162,6 @@ jobs:
 * **Attach tags, summary, description**:
 
   ```
-  python
-  Copy code
   @router.get("/items/{item_id}", tags=["items"], summary="Get item by ID")
   ```
 
