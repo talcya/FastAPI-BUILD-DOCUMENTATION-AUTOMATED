@@ -1,3 +1,256 @@
+1. a crisp **SPECIFY.md** (the master brief for your agent)
+
+2. **spec-kit prompts** for `/specify`, `/clarify`, `/plan`, `/tasks`, `/implement`, `/checklist`, `/analyze`, `/constitution`
+
+3. a ready **VSCode `tasks.json`** to run the build and validate output
+
+4. a self-contained **`scripts/build_api_docs.py`** the agent can run locally (no internet)
+
+5. a short **README** telling your agent how to execute and what to check
+
+- - -
+
+# 1) SPECIFY.md (paste as `SPECIFY.md`)
+
+```
+
+# Project: Unified API Documentation Generator
+
+## Objective
+Produce a **single-source-of-truth** API reference from local inputs:
+- `docs/openapi.snapshot.json`
+- `docs/schemas/*.json`
+- `docs/examples/*.{md,json}`
+- `docs/endpoints.csv`
+- `docs/postman_collection.json` (optional)
+
+### Deliverables
+1. `API_GUIDE.md`
+   - Group **by tag**, with a **Table of Contents** (anchor links).
+   - Each endpoint: summary, parameters (Required ✅ / Optional ⚪), full request/response schema (types + example values), **3 example requests** (curl, HTTPie, JS fetch), and **3 valid + 3 invalid** payloads if a body exists.
+   - Close all code fences. No TODOs/placeholder text.
+2. `API_GUIDE_SUMMARY.pdf`
+   - Dark theme, grouped by tag, **short payloads**, 1–2 lines per endpoint.
+3. `API_DOCUMENTATION_BUNDLE.zip` containing both files.
+
+### Acceptance Criteria
+- Every endpoint in `openapi.snapshot.json` is documented (no omissions).
+- OpenAPI ↔ CSV cross-check present (missing-in-OpenAPI and missing-in-CSV lists).
+- All request bodies include 3 valid + 3 invalid examples.
+- No broken code fences, no TODOs.
+- Summary PDF uses dark styling, short payloads, grouped by tag.
+
+### Constraints
+- **Offline only** (no network calls).
+- Use **only** data in `docs/`.
+- If refs are `$ref: "#/components/schemas/..."`, resolve them locally.
+
+### Inputs
+```
+
+docs/
+openapi.snapshot.json
+endpoints.csv
+postman\_collection.json (optional)
+examples/
+... example request/response bodies (.json or .md)
+schemas/
+*.json
+
+```
+
+
+### Outputs
+
+/API\_GUIDE.md\
+/API\_GUIDE\_SUMMARY.pdf\
+/API\_DOCUMENTATION\_BUNDLE.zip
+
+
+### Style & UX
+- Markdown with GitHub-style fenced blocks (dark theme assumed by platform).
+- Collapsible `<details>` sections for example payloads.
+- Anchor-linked TOC at the top.
+```
+
+- - -
+
+# 2) spec-kit prompts (ready to paste for your agent)
+
+## `/specify`
+
+```
+You are building a local, offline API docs generator.
+
+**Goal:** From local files in `docs/`, emit:
+- API_GUIDE.md (full, grouped by tag, TOC, examples, valid/invalid payloads)
+- API_GUIDE_SUMMARY.pdf (dark, compact)
+- API_DOCUMENTATION_BUNDLE.zip
+
+**Inputs:** docs/openapi.snapshot.json, docs/schemas/*.json, docs/examples/*, docs/endpoints.csv, docs/postman_collection.json (optional).
+
+**Rules:**
+- Group endpoints by OpenAPI tag.
+- For each endpoint+method:
+  - Summary, parameters table with Required ✅ / Optional ⚪
+  - Request/response schemas with types and example values
+  - 3 example requests: curl, HTTPie, JS fetch
+  - If request body exists: 3 valid + 3 invalid payloads
+- Cross-check OpenAPI vs endpoints.csv and list mismatches.
+- No TODOs. All code fences closed.
+
+**Acceptance Criteria:** As stated in SPECIFY.md under "Acceptance Criteria".
+```
+
+## `/clarify`
+
+```
+If any file is missing or malformed:
+- Ask for the path or confirm to continue without it.
+If tags are missing, use "Untagged".
+If servers are missing, default to http://localhost:8000.
+Do not invent endpoints not present in OpenAPI.
+```
+
+## `/plan`
+
+```
+1) Load and validate OpenAPI snapshot.
+2) Index components/schemas for $ref resolution.
+3) Parse endpoints.csv for coverage cross-check.
+4) Group endpoints by tag.
+5) For each endpoint+method:
+   - Render parameters table
+   - Resolve requestBody schema; produce valid/invalid payloads
+   - Resolve response schemas
+   - Generate 3 example requests
+6) Append Components Schemas + external docs/schemas/*.json
+7) Render Summary PDF (dark, compact).
+8) Zip outputs.
+9) Run a post-check: code fences, counts, missing endpoints.
+```
+
+## `/tasks`
+
+```
+- Build: Run "Python: Build API Docs"
+- Validate MD: Run "Docs: Lint Markdown Fences"
+- Open outputs: "Open API_GUIDE.md" and "Open API_GUIDE_SUMMARY.pdf"
+- Zip outputs: Done in build step
+```
+
+## `/implement`
+
+```
+- Create scripts/build_api_docs.py (from the template provided).
+- Ensure it reads only local files under docs/.
+- Write outputs to repo root.
+- Produce logs: endpoint counts, mismatches.
+```
+
+## `/checklist`
+
+```
+
+- [ ] openapi.snapshot.json parsed
+- [ ] endpoints grouped by tag
+- [ ] every endpoint+method documented
+- [ ] parameters required flags correct
+- [ ] 3 example requests per endpoint
+- [ ] 3 valid + 3 invalid payloads for bodies
+- [ ] responses include schema shapes
+- [ ] coverage: OpenAPI vs CSV listed
+- [ ] no TODOs/placeholder
+- [ ] code fences closed
+- [ ] PDF generated dark + compact
+- [ ] ZIP created
+```
+
+## `/analyze`
+
+```
+
+- Compare # endpoints in OpenAPI vs CSV; show diffs.
+- Flag endpoints missing tags.
+- Report endpoints with empty request/response schemas.
+- Summarize top 5 schema refs reused across endpoints.
+```
+
+## `/constitution`
+
+```
+
+- Be precise. No hand-waving.
+- Prefer explicit examples from schemas.
+- No external links or network use.
+- Resolve $ref locally or skip with a clear note under that endpoint.
+- Keep docs readable and navigable.
+```
+
+- - -
+
+# 3) VSCode `.vscode/tasks.json`
+
+Create `.vscode/tasks.json`:
+
+````
+
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Python: Build API Docs",
+      "type": "shell",
+      "command": "python",
+      "args": ["scripts/build_api_docs.py"],
+      "options": {
+        "env": {
+          "NO_NETWORK": "1"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docs: Lint Markdown Fences",
+      "type": "shell",
+      "command": "python",
+      "args": ["-c", "import sys, re; s=open('API_GUIDE.md','r',encoding='utf-8').read(); print('OK' if s.count('```')%2==0 else 'BROKEN_FENCES'); sys.exit(0 if s.count('```')%2==0 else 1)"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Open API_GUIDE.md",
+      "type": "shell",
+      "command": "code",
+      "args": ["-r", "API_GUIDE.md"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Open API_GUIDE_SUMMARY.pdf",
+      "type": "shell",
+      "command": "code",
+      "args": ["-r", "API_GUIDE_SUMMARY.pdf"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Build + Validate Docs",
+      "dependsOn": [
+        "Python: Build API Docs",
+        "Docs: Lint Markdown Fences"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
+````
+
+- - -
+
+# 4) `scripts/build_api_docs.py` (drop-in script)
+
+Place this at `scripts/build_api_docs.py` (Python 3.10+). It’s a trimmed version of what I ran; offline, robust, and emits everything you asked for.
+
+````
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -402,3 +655,46 @@ with zipfile.ZipFile(OUT_ZIP, "w", zipfile.ZIP_DEFLATED) as z:
     if OUT_PDF.exists(): z.write(OUT_PDF, arcname="API_GUIDE_SUMMARY.pdf")
 
 print("DONE:", OUT_MD, OUT_PDF if OUT_PDF.exists() else "(no-pdf)", OUT_ZIP)
+
+````
+
+- - -
+
+# 5) README (agent-facing quick run)
+
+```
+
+# Unified API Docs — Local Build
+
+## Prereqs
+- Python 3.10+
+- `pip install reportlab` (for PDF). If you skip this, only the Markdown + ZIP will be produced.
+
+## Files expected
+```
+
+docs/
+openapi.snapshot.json
+endpoints.csv
+postman_collection.json (optional)
+schemas_.json
+examples_.{md,json} (optional)
+
+```
+
+## Run with VSCode tasks
+- **Build:** press `Ctrl/Cmd + Shift + P` → “Tasks: Run Task” → **Build + Validate Docs**
+- Or run individually:
+  - **Build:** “Python: Build API Docs”
+  - **Lint fences:** “Docs: Lint Markdown Fences”
+  - **Open outputs:** “Open API_GUIDE.md”, “Open API_GUIDE_SUMMARY.pdf”
+
+## Outputs
+- `API_GUIDE.md` (full reference, grouped by tag, TOC, examples)
+- `API_GUIDE_SUMMARY.pdf` (dark, compact)
+- `API_DOCUMENTATION_BUNDLE.zip`
+
+## Notes
+- If `endpoints.csv` and OpenAPI disagree, the doc includes a coverage report.
+- If a schema `$ref` can’t be resolved, the script documents the endpoint but flags the missing schema under “Request Body Schema” or “Responses”.
+```
